@@ -1,0 +1,53 @@
+# Git / VCS
+.git
+.gitignore
+.gitattributes
+.github
+
+# Python
+__pycache__
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.eggs/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Virtual envs
+.venv/
+venv/
+env/
+ENV/
+
+# Editor / IDE
+.vscode/
+.idea/
+.spyproject/
+*.swp
+*.swo
+.DS_Store
+
+# Project artifacts (keep only what the image needs)
+data/
+notebooks/
+docs/
+reports/
+references/
+Makefile
+tox.ini
+test_environment.py
+credb.txt
+cred.txt
+README.md
+*.log
+
+# Heavy caches that should not ship
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+.tox/
+build/
+dist/

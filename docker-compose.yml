@@ -1,0 +1,24 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hallucination-api:latest
+    container_name: hallucination-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # Override the model directory if you mount a volume.
+      HALLUCINATION_MODEL_DIR: /app/models/saved_distilbert_hallucination_model
+      # Set to 1 to allow 4 workers (good for CPU-bound inference).
+      WEB_CONCURRENCY: "1"
+    # Uncomment to mount a fresh model from the host instead of the COPY in the Dockerfile:
+    # volumes:
+    #   - ./models/saved_distilbert_hallucination_model:/app/models/saved_distilbert_hallucination_model:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
