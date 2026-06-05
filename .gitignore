@@ -90,3 +90,6 @@ target/
 
 
 .venv
+cred.txt
+models/saved_distilbert_hallucination_model/
+models/saved_distilbert_hallucination_model.zip

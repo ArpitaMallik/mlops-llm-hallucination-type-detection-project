@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LLM Hallucination Type Detector</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --panel-2: #273449;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-strong: #0ea5e9;
+      --none: #22c55e;
+      --fabrication: #f97316;
+      --confusion: #a855f7;
+      --border: #334155;
+      --error: #ef4444;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+
+    header {
+      width: 100%;
+      max-width: 880px;
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.9rem;
+      letter-spacing: 0.5px;
+    }
+
+    header p {
+      margin: 0.5rem 0 0;
+      color: var(--muted);
+    }
+
+    .badge {
+      display: inline-block;
+      margin-top: 0.75rem;
+      padding: 0.25rem 0.6rem;
+      font-size: 0.75rem;
+      border-radius: 999px;
+      background: var(--panel-2);
+      color: var(--accent);
+      border: 1px solid var(--border);
+    }
+
+    main {
+      width: 100%;
+      max-width: 880px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
+
+    @media (min-width: 800px) {
+      main { grid-template-columns: 1fr 1fr; }
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.25rem 1.4rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 140px;
+      resize: vertical;
+      padding: 0.75rem 0.9rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #0b1220;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+    }
+
+    .actions {
+      margin-top: 0.9rem;
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    button {
+      cursor: pointer;
+      background: var(--accent-strong);
+      color: #001018;
+      border: 0;
+      border-radius: 10px;
+      padding: 0.6rem 1.1rem;
+      font-weight: 700;
+      font-size: 0.95rem;
+      transition: transform 0.05s ease, background 0.2s ease;
+    }
+
+    button:hover { background: var(--accent); }
+    button:active { transform: translateY(1px); }
+    button:disabled { opacity: 0.6; cursor: progress; }
+
+    .examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.8rem;
+    }
+
+    .examples button {
+      background: var(--panel-2);
+      color: var(--text);
+      font-weight: 500;
+      font-size: 0.8rem;
+      padding: 0.35rem 0.7rem;
+      border: 1px solid var(--border);
+    }
+
+    .examples button:hover { background: #334155; }
+
+    .result-card h2 {
+      margin: 0 0 0.6rem;
+      font-size: 1.05rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+    }
+
+    .label-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.55rem 1rem;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 1.1rem;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+    }
+
+    .label-pill .dot {
+      width: 0.7rem;
+      height: 0.7rem;
+      border-radius: 50%;
+    }
+
+    .label-none      .dot { background: var(--none); }
+    .label-fabrication .dot { background: var(--fabrication); }
+    .label-confusion  .dot { background: var(--confusion); }
+
+    .meta {
+      margin-top: 0.9rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .scores {
+      margin-top: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .score-row {
+      display: grid;
+      grid-template-columns: 110px 1fr 60px;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.9rem;
+    }
+
+    .score-bar {
+      background: var(--panel-2);
+      border-radius: 999px;
+      overflow: hidden;
+      height: 10px;
+    }
+
+    .score-bar > span {
+      display: block;
+      height: 100%;
+      border-radius: 999px;
+    }
+
+    .score-bar > span.none      { background: var(--none); }
+    .score-bar > span.fabrication { background: var(--fabrication); }
+    .score-bar > span.confusion  { background: var(--confusion); }
+
+    .score-value { text-align: right; color: var(--muted); }
+
+    .error {
+      color: var(--error);
+      font-weight: 600;
+      margin-top: 0.5rem;
+    }
+
+    .placeholder {
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    footer {
+      margin-top: 2rem;
+      color: var(--muted);
+      font-size: 0.8rem;
+      text-align: center;
+    }
+
+    code { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>LLM Hallucination Type Detector</h1>
+    <p>Enter a prompt (or an LLM response) and the DistilBERT classifier will predict the
+       likely hallucination type.</p>
+    <span class="badge">Backend: <code>{{ backend }}</code></span>
+  </header>
+
+  <main>
+    <section class="card">
+      <form method="post" action="/predict/form" id="predict-form">
+        <label for="text">Prompt / response text</label>
+        <textarea
+          id="text"
+          name="text"
+          placeholder="e.g. What is the Byzantine Generals Problem?"
+          required>{{ input_text or '' }}</textarea>
+
+        <div class="actions">
+          <button type="submit" id="submit-btn">Classify</button>
+          <button type="button" id="clear-btn" class="examples-btn" style="background: var(--panel-2); color: var(--text); border: 1px solid var(--border);">Clear</button>
+        </div>
+
+        <div class="examples">
+          <span style="font-size: 0.8rem; color: var(--muted); margin-right: 0.4rem;">Examples:</span>
+          <button type="button" class="ex" data-text="What is the Byzantine Generals Problem?">Byzantine Generals</button>
+          <button type="button" class="ex" data-text="What is DNA an abbreviation for?">DNA question</button>
+          <button type="button" class="ex" data-text="Explain quantum entanglement in simple terms.">Quantum entanglement</button>
+        </div>
+
+        {% if error %}
+          <p class="error">{{ error }}</p>
+        {% endif %}
+      </form>
+    </section>
+
+    <section class="card result-card">
+      <h2>Prediction</h2>
+
+      {% if result %}
+        <div class="label-pill label-{{ result.label }}">
+          <span class="dot"></span>
+          <span>{{ result.label }} (id={{ result.label_id }})</span>
+        </div>
+
+        <div class="meta">
+          <span>Confidence: <strong>{{ '%.1f%%' % (result.confidence * 100) }}</strong></span>
+          <span>Latency: {{ '%.1f' % result.latency_ms }} ms</span>
+          <span>Backend: <code>{{ backend }}</code></span>
+        </div>
+
+        <div class="scores">
+          {% for label in labels %}
+            {% set score = result.scores.get(label, 0.0) %}
+            {% set pct = (score * 100) | round(1) %}
+            <div class="score-row">
+              <span>{{ label }}</span>
+              <div class="score-bar">
+                <span class="{{ label }}" data-width="{{ pct }}"></span>
+              </div>
+              <span class="score-value">{{ '%.1f%%' % pct }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="placeholder">Submit a prompt to see the predicted hallucination type and class probabilities.</p>
+        <p class="placeholder">Try one of the example chips on the left, or POST to
+          <code>/predict</code> with JSON
+          <code>{ "text": "..." }</code>.</p>
+      {% endif %}
+    </section>
+  </main>
+
+  <footer>
+    POST <code>/predict</code> &middot; JSON API &middot; Health check at
+    <code>/health</code> &middot; Docs at <code>/docs</code>
+  </footer>
+
+  <script>
+    document.getElementById("clear-btn").addEventListener("click", function () {
+      const ta = document.getElementById("text");
+      ta.value = "";
+      ta.focus();
+    });
+
+    document.querySelectorAll(".ex").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        document.getElementById("text").value = btn.getAttribute("data-text");
+        document.getElementById("text").focus();
+      });
+    });
+
+    document.getElementById("predict-form").addEventListener("submit", function () {
+      const btn = document.getElementById("submit-btn");
+      btn.disabled = true;
+      btn.textContent = "Classifying…";
+      setTimeout(function () { btn.disabled = false; btn.textContent = "Classify"; }, 5000);
+    });
+
+    // Set score-bar widths from data-width (avoids CSS-attr quirks in some browsers).
+    document.querySelectorAll(".score-bar > span[data-width]").forEach(function (el) {
+      const w = parseFloat(el.getAttribute("data-width"));
+      if (!isNaN(w)) el.style.width = w + "%";
+    });
+  </script>
+</body>
+</html>
